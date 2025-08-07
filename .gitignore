@@ -1,0 +1,19 @@
+# 忽略构建目录
+# 忽略安装输出和构建文件
+# 忽略所有 build 目录，无论在哪一层
+**/build/
+*.so
+*.a
+*.o
+*.dll
+*.exe
+*.dylib
+*.log
+*.root
+*.bin
+*.raw
+*.zip
+*.tar
+*.gz
+*.tgz
+*.DS_Store
