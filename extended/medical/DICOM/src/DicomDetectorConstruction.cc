@@ -83,7 +83,9 @@ DicomDetectorConstruction::DicomDetectorConstruction()
     fVoxelHalfDimZ(0),
 
     fConstructed(false)
-{}
+{
+  G4cout << "-------------------++++" << G4endl;
+}
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo...
 DicomDetectorConstruction::~DicomDetectorConstruction() {}
@@ -91,9 +93,10 @@ DicomDetectorConstruction::~DicomDetectorConstruction() {}
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo.....
 G4VPhysicalVolume* DicomDetectorConstruction::Construct()
 {
+  G4cout << "-------------------" << G4endl;
   if (!fConstructed || fWorld_phys == 0) {
     fConstructed = true;
-    InitialisationOfMaterials();
+    InitialisationOfMaterials(); //定义组织材料
 
     //----- Build world
     G4double worldXDimension = 1. * m;
@@ -580,7 +583,7 @@ void DicomDetectorConstruction::ReadVoxelDensities(std::ifstream& fin)
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo.......
 void DicomDetectorConstruction::ReadPhantomData()
 {
-  G4String dataFile = DicomHandler::GetDicomDataFile();
+  G4String dataFile = DicomHandler::GetDicomDataFile(); //./Data.dat
   std::ifstream finDF(dataFile.c_str());
   G4String fname;
 
@@ -607,6 +610,26 @@ void DicomDetectorConstruction::ReadPhantomData()
   finDF.close();
 }
 
+/*
+	1.	打开文件
+读取文件 fname，打开失败则抛出异常。
+	2.	读取环境变量 DICOM_CHANGE_MATERIAL_DENSITY，初始化密度差阈值 densityDiff
+	•	如果环境变量设置了，就统一给所有原始材料设置密度区间大小 densityDiff。
+	•	否则，默认 densityDiff = -1.，表示不区分密度。
+	3.	首次读取切片（slice）时，复制原始材料到 fMaterials
+	•	只有第一次读取切片时，fMaterials 才拷贝原始材料列表。
+	4.	读取切片头信息，获取当前切片体素数量 nVoxels。
+	5.	初始化或扩展材料ID数组 fMateIDs
+	•	fMateIDs 用于存储每个体素对应的材料索引。
+	6.	读取材料索引（mateID）列表
+	•	文件中对当前切片的每个体素读取材料ID，存入 fMateIDs 数组。
+	7.	读取密度信息，并根据 densityDiff 处理密度区间
+	•	如果 densityDiff != -1，将当前密度归入对应密度区间（bin）。
+	•	根据原始材料名和密度区间名拼接出新材料名 newMateName。
+	8.	查找已有的材料列表中是否已存在该密度区间的材料
+	•	如果存在，复用已有材料索引，更新 fMateIDs。
+	•	如果不存在，则调用 BuildMaterialWithChangingDensity 创建新材料实例，并加入 fMaterials，更新 fMateIDs。
+*/
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........
 void DicomDetectorConstruction::ReadPhantomDataFile(const G4String& fname)
 {
@@ -646,7 +669,7 @@ void DicomDetectorConstruction::ReadPhantomDataFile(const G4String& fname)
   fZSliceHeaders.push_back(sliceHeader);
 
   //----- Read material indices
-  G4int nVoxels = sliceHeader->GetNoVoxels();
+  G4int nVoxels = sliceHeader->GetNoVoxels(); // 获取总共的体素数
 
   //--- If first slice, initiliaze fMateIDs
   if (fZSliceHeaders.size() == 1) {
@@ -657,17 +680,18 @@ void DicomDetectorConstruction::ReadPhantomDataFile(const G4String& fname)
   unsigned int mateID;
   // number of voxels from previously read slices
   G4int voxelCopyNo = G4int((fZSliceHeaders.size() - 1) * nVoxels);
-  for (G4int ii = 0; ii < nVoxels; ++ii, voxelCopyNo++) {
+  for (G4int ii = 0; ii < nVoxels; ++ii, voxelCopyNo++) { //nVoxels=16384
     fin >> mateID;
+    
     fMateIDs[voxelCopyNo] = mateID;
-  }
-
-  //----- Read material densities and build new materials if two voxels have
+  }//明白什么意思了，就是说它这个1.g4dcm 16384个元素只是在说映射了哪个材料ID，总共个10个材料
+  //----- Read material densities and build new materials if two voxels have //如果两个体素的材料类型相同（例如都是“软组织”），但是它们的密度落在不同的密度区间，那么会为新的密度区间创建一个新的材料实例。
   //  same material but its density is in a different density interval
   // (size of density intervals defined by densityDiff)
   G4double density;
   // number of voxels from previously read slices
   voxelCopyNo = G4int((fZSliceHeaders.size() - 1) * nVoxels);
+  G4cout<<"densityDiff===="<<densityDiff<<G4endl; //这里的densityDiff就是-1
   for (G4int ii = 0; ii < nVoxels; ++ii, voxelCopyNo++) {
     fin >> density;
 
@@ -680,6 +704,7 @@ void DicomDetectorConstruction::ReadPhantomDataFile(const G4String& fname)
     G4String newMateName = mateOrig->GetName();
     G4float densityBin = 0.;
     if (densityDiff != -1.) {
+      
       densityBin = G4float(fDensityDiffs[mateID]) * (G4int(density / fDensityDiffs[mateID]) + 0.5);
       //-- Build the new material name
       newMateName += G4UIcommand::ConvertToString(densityBin);

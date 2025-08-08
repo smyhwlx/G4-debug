@@ -35,4 +35,4 @@ else
 fi
 
 echo "编译完成！"
-cd build
+DICOM_NESTED_PARAM=1 ./DICOM

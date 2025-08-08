@@ -131,7 +131,7 @@ void DicomPhantomZSliceHeader::operator+=(const DicomPhantomZSliceHeader& rhs)
 DicomPhantomZSliceHeader DicomPhantomZSliceHeader::operator+(const DicomPhantomZSliceHeader& rhs)
 {
   //----- Check that both slices has the same dimensions
-  if (fNoVoxelsX != rhs.GetNoVoxelsX() || fNoVoxelsY != rhs.GetNoVoxelsY()) {
+  if (fNoVoxelsX != rhs.GetNoVoxelsX() || fNoVoxelsY != rhs.GetNoVoxelsY()) { //确认像素的维度一定要一致
     G4cerr << "DicomPhantomZSliceHeader error adding two slice headers:\
         !!! Different number of voxels: "
            << "  X= " << fNoVoxelsX << " =? " << rhs.GetNoVoxelsX() << "  Y=  " << fNoVoxelsY
@@ -140,7 +140,7 @@ DicomPhantomZSliceHeader DicomPhantomZSliceHeader::operator+(const DicomPhantomZ
     G4Exception("DicomPhantomZSliceHeader::DicomPhantomZSliceHeader", "", FatalErrorInArgument, "");
   }
   //----- Check that both slices has the same extensions
-  if (fMinX != rhs.GetMinX() || fMaxX != rhs.GetMaxX() || fMinY != rhs.GetMinY()
+  if (fMinX != rhs.GetMinX() || fMaxX != rhs.GetMaxX() || fMinY != rhs.GetMinY() //检查 X、Y 的空间范围（min/max）是否一致
       || fMaxY != rhs.GetMaxY())
   {
     G4cerr << "DicomPhantomZSliceHeader error adding two slice headers:\
@@ -152,7 +152,7 @@ DicomPhantomZSliceHeader DicomPhantomZSliceHeader::operator+(const DicomPhantomZ
   }
 
   //----- Check that both slices have the same materials
-  std::vector<G4String> fMaterialNames2 = rhs.GetMaterialNames();
+  std::vector<G4String> fMaterialNames2 = rhs.GetMaterialNames(); //检查材料列表是否完全相同（数量与每个名字顺序）
   if (fMaterialNames.size() != fMaterialNames2.size()) {
     G4cerr << "DicomPhantomZSliceHeader error adding two slice headers:\
         !!! Different number of materials: "
@@ -171,7 +171,12 @@ DicomPhantomZSliceHeader DicomPhantomZSliceHeader::operator+(const DicomPhantomZ
   //----- Check that the slices are contiguous in Z
   if (std::fabs(fMinZ - rhs.GetMaxZ()) > G4GeometryTolerance::GetInstance()->GetRadialTolerance()
       && std::fabs(fMaxZ - rhs.GetMinZ())
-           > G4GeometryTolerance::GetInstance()->GetRadialTolerance())
+           > G4GeometryTolerance::GetInstance()->GetRadialTolerance())//检查 Z 方向是否相邻（contiguous）
+           //为什么要检查（关键点）：
+//合并只在 Z 上把两片“拼接”成一个连续体积；因此它们必须在 Z 轴上相邻（例如 this.maxZ ≈ rhs.minZ 或 this.minZ ≈ rhs.maxZ）。
+//实现上采用了容忍度 G4GeometryTolerance::GetInstance()->GetRadialTolerance()，用于处理浮点微小差异。这里的逻辑是：
+	//•	如果两种可能的相邻情况 都不成立（两边差值都大于 tol），那就认为它们不相邻，报错。
+	//•	也就是说，只要 有一边的差值 ≤ tol，就认为“相邻”，允许合并。
   {
     G4cerr << "DicomPhantomZSliceHeader error adding two slice headers:!!!\
         Slices are not contiguous in Z "

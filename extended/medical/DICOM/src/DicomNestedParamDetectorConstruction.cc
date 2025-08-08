@@ -57,6 +57,8 @@ DicomNestedParamDetectorConstruction::~DicomNestedParamDetectorConstruction() {}
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 void DicomNestedParamDetectorConstruction::ConstructPhantom()
 {
+
+  G4cout << "DicomNestedParamDetectorConstruction::ConstructPhantom===========1 " << G4endl;
 #ifdef G4VERBOSE
   G4cout << "DicomNestedParamDetectorConstruction::ConstructPhantom " << G4endl;
 #endif
